@@ -173,12 +173,17 @@ class CifarDatasetSource(TFDSDatasetSource):
         * cutout: Applies cutout (https://arxiv.org/abs/1708.04552).
         * mixup: Applies mixup (https://arxiv.org/pdf/1710.09412.pdf).
         * mixcut: Applies mixup and cutout.
+        * cutmix: Applies real CutMix (https://arxiv.org/abs/1905.04899) --
+          pastes a rectangular patch from image B onto image A and mixes
+          labels proportionally to the actual patch area. Different from
+          `mixcut` which is just cutout(mixup(x)).
       image_size: Size to which the image should be rescaled. If None, the
         standard size is used (32x32).
     """
     assert name in ['cifar10', 'cifar100']
     assert image_level_augmentations in ['none', 'basic', 'autoaugment']
-    assert batch_level_augmentations in ['none', 'cutout']
+    assert batch_level_augmentations in [
+        'none', 'cutout', 'mixup', 'mixcut', 'cutmix']
     self._image_size = image_size
     self.batch_size = batch_size
     if FLAGS.use_test_set:
@@ -204,6 +209,8 @@ class CifarDatasetSource(TFDSDatasetSource):
     elif batch_level_augmentations == 'mixcut':
       self._batch_level_augmentations = (
           lambda x: augmentation.cutout(augmentation.mixup(x)))
+    elif batch_level_augmentations == 'cutmix':
+      self._batch_level_augmentations = augmentation.cutmix
     else:
       self._batch_level_augmentations = None
     if name == 'cifar10':
