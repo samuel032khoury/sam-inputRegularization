@@ -15,6 +15,16 @@ conda activate sam-env
 export PATH="$HOME/.conda/envs/sam-env/bin:$PATH"
 hash -r
 
+# Head node 的 RLIMIT_NPROC 很严, OpenBLAS/OMP 默认想开几十个线程会触顶
+# 把线程数压到 1, 只是做 import check, 不需要并行
+export OPENBLAS_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export TF_NUM_INTEROP_THREADS=1
+export TF_NUM_INTRAOP_THREADS=1
+export TF_CPP_MIN_LOG_LEVEL=2
+
 cd "$HOME"
 
 echo ""
@@ -29,14 +39,28 @@ print('OK: all augmentation functions exist')
 
 echo ""
 echo "=== [3/3] dataset_source accepts cutmix ==="
+# 直接读源文件, 避开 inspect.getsource() 对继承 __init__ 的 wrapper_descriptor 问题
 python -c "
-import inspect
-from sam.sam_jax.datasets import dataset_source
-src = inspect.getsource(dataset_source.TFDSDatasetSource.__init__)
-assert \"'cutmix'\" in src, 'FAIL: cutmix branch missing in dataset_source.py'
-# Check the assert has been relaxed
-assert 'mixup' in src and 'mixcut' in src and 'cutmix' in src, \
-    'FAIL: assert not updated'
+from pathlib import Path
+src_path = Path.home() / 'sam' / 'sam_jax' / 'datasets' / 'dataset_source.py'
+assert src_path.exists(), f'FAIL: {src_path} not found'
+src = src_path.read_text()
+
+# Check 1: assert relaxed to include mixup/mixcut/cutmix
+assert \"'mixup'\" in src and \"'mixcut'\" in src and \"'cutmix'\" in src, \
+    'FAIL: assert not updated for all 3 augmentations'
+print('  - assert includes mixup/mixcut/cutmix: OK')
+
+# Check 2: cutmix elif branch exists
+assert 'augmentation.cutmix' in src, \
+    'FAIL: cutmix branch missing (no augmentation.cutmix reference)'
+print('  - elif cutmix branch exists: OK')
+
+# Check 3: existing branches still there (compatibility)
+for keyword in ['augmentation.cutout', 'augmentation.mixup']:
+    assert keyword in src, f'FAIL: {keyword} branch broken'
+print('  - existing cutout/mixup branches intact: OK')
+
 print('OK: dataset_source accepts all augmentation types')
 "
 
