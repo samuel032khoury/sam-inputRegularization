@@ -2,28 +2,30 @@
 # =============================================================
 # SAM CIFAR-10 WideResNet-28-10 Slurm job script for USC CARC
 # -------------------------------------------------------------
-# 用法:
-#   1) 填好下面的 --account 字段
-#   2) 把这个文件和代码一起上传到 CARC: ~/sam/run_sam.slurm
-#   3) 提交: sbatch ~/sam/run_sam.slurm
-#   4) 查状态: squeue -u $USER
-#   5) 查日志: tail -f ~/sam/logs/sam_<jobid>.out
+# Usage:
+#   1) Fill in the --account field below.
+#   2) Upload this file (with the code) to CARC: ~/sam/run_sam.slurm
+#   3) Submit:   sbatch ~/sam/run_sam.slurm
+#   4) Status:   squeue -u $USER
+#   5) Tail log: tail -f ~/sam/logs/sam_<jobid>.out
 # =============================================================
 
 #SBATCH --job-name=sam_cifar10
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:1                   # 不限定型号, 谁空用谁 (P100/V100/A100/A40 都行)
+#SBATCH --gres=gpu:1                   # any GPU type (P100/V100/A100/A40)
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
-#SBATCH --time=48:00:00                # 最长 48h; P100 上大约 17h 可完整跑 200 epoch
-#SBATCH --account=REPLACE_ME           # 🚨 必填! 查: sacctmgr show assoc user=$USER
+#SBATCH --time=48:00:00                # 48h max; ~17h on P100 for 200 epochs
+#SBATCH --account=REPLACE_ME           # REQUIRED. Check: sacctmgr show assoc user=$USER
 #SBATCH --output=logs/sam_%j.out
 #SBATCH --error=logs/sam_%j.err
 
-set -uo pipefail      # 注意: 没用 -e, 方便我们在 activate 前手动验证
+set -uo pipefail      # No -e: we want to do manual sanity checks first
 
-# === 环境加载 (顺序必须: legacy -> gcc -> cuda -> cudnn -> conda) ===
-# cuda/11.8.0 和 cudnn/8.4 在 legacy/CentOS7 + gcc/11.3.0 parent 下, 顺序错了 load 不上
+# === Environment load (order MUST be:
+#       legacy -> gcc -> cuda -> cudnn -> conda) ===
+# cuda/11.8.0 and cudnn/8.4 only resolve under the
+# legacy/CentOS7 + gcc/11.3.0 parents; the wrong order silently fails.
 module purge
 module load legacy/CentOS7
 module load gcc/11.3.0
@@ -31,27 +33,28 @@ module load cuda/11.8.0
 module load cudnn/8.4.0.27-11.6
 module load conda
 
-# Slurm non-interactive shell 里 conda activate 经常"假激活": 命令不报错,
-# 但 python 依然指向 conda base. 解决办法 = source hook + 硬 override PATH + hash -r
+# In Slurm non-interactive shells, `conda activate` often "fake-activates":
+# the command succeeds without error but `python` still points at base.
+# Fix: source the hook, hard-override PATH, then hash -r.
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sam-env || true
 export PATH="$HOME/.conda/envs/sam-env/bin:$PATH"
-hash -r               # 清 bash 对 python 位置的缓存
+hash -r               # clear bash's cached python path
 
-# JAX/XLA 找 CUDA 工具 (ptxas, libdevice)
+# Tell JAX/XLA where to find the CUDA tooling (ptxas, libdevice).
 export XLA_FLAGS="--xla_gpu_cuda_data_dir=$CUDA_HOME"
-# 压低 TF 冗余 warning (train.py 禁用 TF GPU, TF 只是个依赖)
+# Quiet down TF warnings (train.py disables TF on GPU; TF is just a dep).
 export TF_CPP_MIN_LOG_LEVEL=2
 
-# 防止 CIFAR-10 每次重下载
+# Avoid re-downloading CIFAR-10 on every run.
 export TFDS_DATA_DIR=/scratch1/$USER/tfds
 mkdir -p "$TFDS_DATA_DIR"
 
-# === 输出目录 (checkpoint + tensorboard 日志) ===
+# === Output directory (checkpoints + tensorboard event files) ===
 export OUTDIR=/scratch1/$USER/sam_experiments/sam_rho0.05
 mkdir -p "$OUTDIR"
 
-# === 记录本次 job 的配置 ===
+# === Log this job's configuration ===
 echo "=========================================="
 echo "Job ID    : $SLURM_JOB_ID"
 echo "Node      : $(hostname)"
@@ -62,12 +65,12 @@ echo "OUTDIR    : $OUTDIR"
 echo "Start     : $(date)"
 echo "=========================================="
 
-# === 启动前 fail-fast 检查 (没通过就退出, 别浪费 GPU 排队) ===
+# === Fail-fast pre-launch check (if it fails, abort instead of wasting GPU time) ===
 python -c "import sys, jax, absl, flax; print('python:', sys.executable); print('jax:', jax.__version__, jax.devices()); print('flax:', flax.__version__)" \
   || { echo "ENV BROKEN — imports failed, aborting"; exit 1; }
 echo "=========================================="
 
-# === 训练 ===
+# === Training ===
 cd "$HOME"
 python -m sam.sam_jax.train \
   --dataset cifar10 \

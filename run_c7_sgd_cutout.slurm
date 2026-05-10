@@ -3,9 +3,11 @@
 # Condition 7: SGD + Cutout
 # Backbone: WideResNet-28-10
 # Augmentation: basic (random crop + horizontal flip) + Cutout
-# NOTE: 这个和旧的 run_baseline.slurm 是等价的 config, 改名对齐 8-condition 设计.
-#       之前 run_baseline.slurm 的输出在 /scratch1/$USER/sam_experiments/no_sam,
-#       可以 mv 成 /scratch1/$USER/sam_experiments/c7_sgd_cutout 以对齐命名 (可选).
+# NOTE: This is the same config as the old run_baseline.slurm; renamed
+#       to align with the 8-condition naming. The old run_baseline.slurm
+#       outputs went to /scratch1/$USER/sam_experiments/no_sam, which
+#       can be mv'd to /scratch1/$USER/sam_experiments/c7_sgd_cutout
+#       to keep names consistent (optional).
 # =============================================================
 
 #SBATCH --job-name=c7_sgd_cutout

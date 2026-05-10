@@ -4,9 +4,11 @@
 # Backbone: WideResNet-28-10
 # Augmentation: basic (random crop + horizontal flip) + Cutout
 # SAM rho = 0.05 (paper default)
-# NOTE: 这个和旧的 run_sam.slurm 是等价的 config, 改名对齐 8-condition 设计.
-#       之前 run_sam.slurm 的输出在 /scratch1/$USER/sam_experiments/sam_rho0.05,
-#       可以 mv 成 /scratch1/$USER/sam_experiments/c8_sam_cutout 以对齐命名 (可选).
+# NOTE: This is the same config as the old run_sam.slurm; renamed to
+#       align with the 8-condition naming. The old run_sam.slurm outputs
+#       went to /scratch1/$USER/sam_experiments/sam_rho0.05, which can
+#       be mv'd to /scratch1/$USER/sam_experiments/c8_sam_cutout to
+#       keep names consistent (optional).
 # =============================================================
 
 #SBATCH --job-name=c8_sam_cutout
