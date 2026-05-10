@@ -5,9 +5,9 @@
 # Augmentation: basic (random crop + horizontal flip) + Mixup (alpha=1.0)
 # Optimizer: SAM, rho = 0.05 (paper default)
 #
-# 对标: C3 (SGD+Mixup) 和 C8 (SAM+Cutout).
-#   - vs C3 → 隔离出 SAM 在 Mixup 之上的额外贡献
-#   - vs C8 → 对比不同 aug 下 SAM 的 gap 大小
+# Compare with: C3 (SGD+Mixup) and C8 (SAM+Cutout).
+#   - vs C3 -> isolates SAM's marginal contribution on top of Mixup
+#   - vs C8 -> compares the size of SAM's gain across different augs
 # =============================================================
 
 #SBATCH --job-name=c5_sam_mixup

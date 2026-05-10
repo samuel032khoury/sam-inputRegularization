@@ -1,22 +1,22 @@
 #!/bin/bash
 # =============================================================
 # Baseline (no SAM) CIFAR-10 WideResNet-28-10 Slurm job
-# 和 run_sam.slurm 一样, 只把 --sam_rho 改成 0.0, OUTDIR 改名
+# Same as run_sam.slurm but with --sam_rho=0.0 and a renamed OUTDIR.
 # =============================================================
 
 #SBATCH --job-name=sam_baseline
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:1                   # 不限定型号, 谁空用谁
+#SBATCH --gres=gpu:1                   # any GPU type
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
-#SBATCH --time=48:00:00                # P100 上基线约 10-11h (SAM 的一半)
-#SBATCH --account=REPLACE_ME           # 🚨 必填!
+#SBATCH --time=48:00:00                # baseline ~10-11h on P100 (~half of SAM)
+#SBATCH --account=REPLACE_ME           # REQUIRED: fill in your account
 #SBATCH --output=logs/baseline_%j.out
 #SBATCH --error=logs/baseline_%j.err
 
-set -uo pipefail    # 不用 -e, 手动验证再 fail
+set -uo pipefail    # no -e: we want to do manual sanity checks first
 
-# legacy -> gcc -> cuda -> cudnn -> conda (顺序不能乱)
+# Module load order MUST be: legacy -> gcc -> cuda -> cudnn -> conda
 module purge
 module load legacy/CentOS7
 module load gcc/11.3.0
@@ -24,7 +24,8 @@ module load cuda/11.8.0
 module load cudnn/8.4.0.27-11.6
 module load conda
 
-# 硬兜底 PATH: 绕过 Slurm 里 conda activate 的"假激活"
+# Hard PATH override to bypass Slurm's "fake conda activate"
+# (where the command succeeds but `python` still points at base).
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sam-env || true
 export PATH="$HOME/.conda/envs/sam-env/bin:$PATH"
@@ -43,7 +44,7 @@ echo "Job ID: $SLURM_JOB_ID on $(hostname), start $(date)"
 echo "GPU   : $(nvidia-smi --query-gpu=name --format=csv,noheader)"
 echo "Python: $(which python)"
 
-# Fail-fast: import 检查不过就别浪费 GPU
+# Fail-fast: abort if imports don't work, don't waste GPU time
 python -c "import sys, jax, absl, flax; print('python:', sys.executable); print('jax:', jax.__version__, jax.devices()); print('flax:', flax.__version__)" \
   || { echo "ENV BROKEN — imports failed, aborting"; exit 1; }
 

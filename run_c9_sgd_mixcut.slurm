@@ -4,16 +4,18 @@
 # Backbone: WideResNet-28-10
 # Augmentation: basic (random crop + horizontal flip) + mixcut
 #   mixcut = cutout(mixup(x))  i.e. Mixup pixel blend -> then punch a cutout hole
-#   label = 软 label (Mixup 的线性混合, Cutout 不动 label)
+#   label = soft label (linear mix from Mixup; Cutout does not change label)
 # Optimizer: SGD, rho = 0.0
 #
-# 对标: 和 C3 (Mixup), C7 (Cutout) 比, 测"两种 aug 叠加"是否有边际收益.
-#       C9 vs C3 → 叠加 Cutout 在 Mixup 之上
-#       C9 vs C7 → 叠加 Mixup 在 Cutout 之上
-#       C10 (SAM + mixcut) 会是 C9 的 SAM 版本.
+# Compare with C3 (Mixup) and C7 (Cutout) to test whether stacking the
+# two augs gives any marginal benefit:
+#   C9 vs C3 -> adds Cutout on top of Mixup
+#   C9 vs C7 -> adds Mixup on top of Cutout
+#   C10 (SAM + mixcut) is the SAM version of C9.
 #
-# 注意: 用的是 google-research/sam 原生的 `mixcut` flag (= cutout(mixup(x))),
-#       不是 Yun 2019 CutMix. 这是"Mixup + Cutout" 组合, 符合 slide 里的 Condition 名字.
+# NOTE: We use google-research/sam's native `mixcut` flag (= cutout(mixup(x))),
+#        NOT Yun 2019 CutMix. This is the "Mixup + Cutout" composition that
+#        matches the Condition name in our slide deck.
 # =============================================================
 
 #SBATCH --job-name=c9_sgd_mixcut

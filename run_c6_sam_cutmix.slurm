@@ -5,11 +5,13 @@
 # Augmentation: basic (random crop + horizontal flip) + CutMix (alpha=1.0)
 # Optimizer: SAM, rho = 0.05 (paper default)
 #
-# 对标: C4 (SGD+CutMix) 和 C8 (SAM+Cutout).
-#   - vs C4 → SAM 在 CutMix 之上的额外贡献 (目前 C4=97.24%, 强 aug baseline)
-#   - vs C8 → CutMix vs Cutout, SAM 更偏好哪种 aug
+# Compare with: C4 (SGD+CutMix) and C8 (SAM+Cutout).
+#   - vs C4 -> SAM's marginal contribution on top of CutMix (currently
+#              C4 = 97.24%, the strongest single-aug baseline)
+#   - vs C8 -> CutMix vs Cutout: which aug does SAM prefer?
 #
-# 注意: cutmix 是你们自己加的真 CutMix (Yun 2019), 不是 Google 原 repo 的 mixcut.
+# NOTE: 'cutmix' here is the real CutMix (Yun 2019) we added ourselves,
+#        NOT the google-research/sam repo's native 'mixcut'.
 # =============================================================
 
 #SBATCH --job-name=c6_sam_cutmix

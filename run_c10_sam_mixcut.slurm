@@ -5,15 +5,19 @@
 # Augmentation: basic (random crop + horizontal flip) + mixcut
 # Optimizer: SAM, rho = 0.05
 #
-# 是 C9 (SGD + mixcut, 96.97%) 的 SAM 版本.
-# 对标:
-#   - C10 vs C9   → SAM 在 mixcut 之上的额外贡献 (期待 ~+0.42, 和其他 aug 一致)
-#   - C10 vs C5   → 在 mixup 之上多叠一层 cutout 是否还有边际收益
-#   - C10 vs C6   → 和 SAM+CutMix 97.68% 的 overall winner 比, 看 mixcut 是不是更弱
-#   - C10 vs C8   → 和 SAM+Cutout 97.43% 比, 看 mixup-blend 是否反向贡献
+# SAM version of C9 (SGD + mixcut, 96.97%).
+# Compare with:
+#   - C10 vs C9  -> SAM's marginal contribution on top of mixcut
+#                   (expect ~+0.42, in line with other augs)
+#   - C10 vs C5  -> does adding Cutout on top of Mixup buy anything more?
+#   - C10 vs C6  -> compared to the overall winner SAM+CutMix (97.68%),
+#                   is mixcut weaker?
+#   - C10 vs C8  -> compared to SAM+Cutout (97.43%), does the Mixup blend
+#                   contribute negatively?
 #
-# 注意: mixcut = cutout(mixup(x)), 不是 Yun 2019 CutMix. 用的是 google-research/sam
-#       原生的 mixcut flag, label 是 Mixup 的 soft label (Cutout 不动 label).
+# NOTE: mixcut = cutout(mixup(x)), NOT Yun 2019 CutMix. Uses
+#        google-research/sam's native `mixcut` flag; the label is the
+#        Mixup soft label (Cutout does not change the label).
 # =============================================================
 
 #SBATCH --job-name=c10_sam_mixcut
