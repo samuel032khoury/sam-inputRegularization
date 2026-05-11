@@ -62,9 +62,11 @@ flags.DEFINE_enum(
     'For Imagenet, setting to autoaugment will use RandAugment. For '
     'FromBrainDatasetSource datasets, this flag is ignored.')
 flags.DEFINE_enum(
-    'batch_level_augmentations', 'none', ['none', 'cutout', 'mixup', 'mixcut'],
+    'batch_level_augmentations', 'none',
+    ['none', 'cutout', 'mixup', 'mixcut', 'cutmix'],
     'Augmentations that are applied at the batch level. '
-    'Not used by Imagenet and FromBrainDatasetSource datasets.')
+    'Not used by Imagenet and FromBrainDatasetSource datasets. '
+    '`cutmix` is real CutMix (Yun 2019); `mixcut` is cutout(mixup(x)).')
 
 
 def main(_):

@@ -158,3 +158,70 @@ def mixup(batch: Dict[str, tf.Tensor],
       images * images_mix_weight + images[::-1] * (1. - images_mix_weight))
   labels_mix = labels * mix_weight + labels[::-1] * (1. - mix_weight)
   return {'image': images_mix, 'label': labels_mix}
+
+
+def cutmix(batch: Dict[str, tf.Tensor],
+           alpha: float = 1.0) -> Dict[str, tf.Tensor]:
+  """Generates augmented images using CutMix (Yun et al., 2019).
+
+  Different from `mixcut` (which is cutout(mixup(x))): real CutMix cuts a
+  rectangular patch from image B and pastes it onto image A (no pixel
+  blending), and mixes labels proportionally to the ACTUAL patch area
+  (so that boundary clipping is correctly reflected in the label).
+
+  Reference:
+  CutMix: Regularization Strategy to Train Strong Classifiers with
+  Localizable Features (https://arxiv.org/abs/1905.04899)
+
+  Args:
+    batch: Feature dict containing the images and the labels. Labels are
+      expected to be one-hot (same convention as `mixup`).
+    alpha: Beta distribution parameter. alpha=1.0 is the CutMix paper
+      default for CIFAR.
+
+  Returns:
+    A feature dict with CutMix-augmented images and area-weighted labels.
+  """
+  images, labels = batch['image'], batch['label']
+  image_height = tf.shape(images)[1]
+  image_width = tf.shape(images)[2]
+
+  # Sample mixing coefficient lambda ~ Beta(alpha, alpha).
+  lam = tfp.distributions.Beta(alpha, alpha).sample([])
+
+  # Compute cut box size: cut_ratio = sqrt(1 - lam) per CutMix paper eq. (1).
+  cut_ratio = tf.sqrt(1.0 - lam)
+  cut_h = tf.cast(tf.cast(image_height, tf.float32) * cut_ratio, tf.int32)
+  cut_w = tf.cast(tf.cast(image_width, tf.float32) * cut_ratio, tf.int32)
+
+  # Random center of the cut region (uniform over the image).
+  cy = tf.random.uniform([], 0, image_height, dtype=tf.int32)
+  cx = tf.random.uniform([], 0, image_width, dtype=tf.int32)
+
+  # Clip bbox to image bounds (CutMix paper eq. (2)).
+  bby1 = tf.clip_by_value(cy - cut_h // 2, 0, image_height)
+  bby2 = tf.clip_by_value(cy + cut_h // 2, 0, image_height)
+  bbx1 = tf.clip_by_value(cx - cut_w // 2, 0, image_width)
+  bbx2 = tf.clip_by_value(cx + cut_w // 2, 0, image_width)
+
+  # Build binary mask: 1 inside box, 0 outside. Shape [H, W].
+  y_coords = tf.range(image_height)[:, None]          # [H, 1]
+  x_coords = tf.range(image_width)[None, :]           # [1, W]
+  inside_box = ((y_coords >= bby1) & (y_coords < bby2) &
+                (x_coords >= bbx1) & (x_coords < bbx2))
+  mask = tf.cast(inside_box, images.dtype)[None, :, :, None]   # [1,H,W,1]
+
+  # Pair each image with its reverse in the batch (same trick as `mixup`).
+  images_pair = images[::-1]
+  images_mixed = (1.0 - mask) * images + mask * images_pair
+
+  # Adjust lambda by ACTUAL patch area (clipping may have shrunk the box).
+  cut_area = tf.cast((bby2 - bby1) * (bbx2 - bbx1), tf.float32)
+  total_area = tf.cast(image_height * image_width, tf.float32)
+  lam_adjusted = 1.0 - cut_area / total_area
+
+  # lam_adjusted is a scalar; labels are [batch, num_classes].
+  labels_mixed = (lam_adjusted * labels +
+                  (1.0 - lam_adjusted) * labels[::-1])
+
+  return {'image': images_mixed, 'label': labels_mixed}
